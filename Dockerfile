@@ -1,20 +1,17 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bullseye
 
-# Tesseract + TR/EN dil paketleri (Debian Bullseye deposu ile)
-RUN apt-get update && apt-get install -y wget gnupg && \
-    echo "deb http://deb.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        tesseract-ocr \
-        tesseract-ocr-eng \
-        tesseract-ocr-tur \
-        libtesseract-dev \
-        liblept5 \
-        libpng16-16 \
-        libjpeg62-turbo \
-        libtiff5 \
-        libglib2.0-0 \
-        libsm6 libxext6 libxrender-dev \
+# Sistemi güncelle + temel bağımlılıklar + Tesseract kurulumu
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    tesseract-ocr-tur \
+    tesseract-ocr-eng \
+    libtesseract-dev \
+    libleptonica-dev \
+    libjpeg62-turbo \
+    libpng16-16 \
+    libtiff5 \
+    libglib2.0-0 \
+    libsm6 libxext6 libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
