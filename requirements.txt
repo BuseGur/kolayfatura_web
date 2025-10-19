@@ -1,5 +1,4 @@
 fastapi
 uvicorn
-pillow
 python-multipart
-jinja2
+pillow
