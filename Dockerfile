@@ -15,9 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Uygulama kodu
 COPY web/ /app/web/
 
-# Tesseract dil yolu (Linux’ta standart)
+# Ortam değişkenleri
+ENV PATH="/usr/bin:$PATH"
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 ENV PYTHONUNBUFFERED=1
 
+# Render portunu destekle
 EXPOSE 8000
-CMD ["uvicorn", "web.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD [ "sh", "-c", "uvicorn web.main:app --host 0.0.0.0 --port ${PORT:-8000}" ]
