@@ -96,7 +96,9 @@ def require_admin(request: Request) -> dict:
 # ============================ SAYFALAR ============================
 @app.get("/login")
 def login_page():
-    return FileResponse(STATIC_DIR / "login.html")
+    # Önbelleklenmesin
+    html = (STATIC_DIR / "login.html").read_text(encoding="utf-8")
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -105,12 +107,14 @@ def home(request: Request):
         return RedirectResponse(url="/login")
     if u.get("role") == "admin":
         return RedirectResponse(url="/admin")
-    return FileResponse(STATIC_DIR / "index.html")
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 @app.get("/admin")
 def admin_page(request: Request):
     require_admin(request)
-    return FileResponse(STATIC_DIR / "admin.html")
+    html = (STATIC_DIR / "admin.html").read_text(encoding="utf-8")
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 # ============================ AUTH API ============================
 @app.get("/api/me")

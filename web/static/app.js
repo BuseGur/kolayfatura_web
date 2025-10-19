@@ -51,7 +51,6 @@ const pageLabel = document.getElementById('pageLabel');
 const fileLabel = document.getElementById('fileLabel');
 
 // ---- DÜZENLENEBİLİR ALANLAR ----
-// Sağ panel input’ları (veya <td contenteditable> ise de çalışır)
 const cells = {
   vendor:    document.getElementById('p_vendor'),
   date:      document.getElementById('p_date'),
@@ -338,7 +337,6 @@ runBatchBtn?.addEventListener('click', async () => {
 });
 
 // ---- KULLANICI DÜZENLEMELERİ ----
-// Alanlar değiştikçe aktif öğeye yaz
 Object.values(cells).forEach(el => {
   const ev = isInput(el) ? 'input' : 'keyup';
   el?.addEventListener(ev, () => {
@@ -588,6 +586,29 @@ histExport?.addEventListener('click', ()=>{
   a.download = `kolayfatura_history_${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+// ---- UI’yi Temizle ----
+function clearAllUI(){
+  // görüntü
+  if (previewEl) { previewEl.src = ""; previewEl.style.display = "none"; }
+  // metinler
+  if (resultBox) setResultText('');
+  if (metaEl)   metaEl.textContent = '';
+  clearParsed();
+
+  // state
+  batchItems = [];
+  currentIndex = -1;
+  updatePager();
+}
+
+// İlk yüklemede temizle
+document.addEventListener('DOMContentLoaded', clearAllUI);
+
+// Tarayıcı geri/ileri ile BFCache’ten dönünce de temizle
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) clearAllUI();
 });
 
 // Başlangıçta son oturumu yükle (mevcut batch yoksa)

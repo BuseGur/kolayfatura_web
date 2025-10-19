@@ -18,7 +18,6 @@
       --navy:#0B1F41; --ink:#0B1F41; --muted:#6b7a90; --card:#ffffff; --radius:20px; --line:#e9eef6;
       --accent:#0E2957; --good:#0ea5a3; --warn:#f59e0b; --danger:#B00020;
 
-      /* Panel/spacing */
       --panel-max:1040px;
       --gap-lg:24px;
       --gap-md:12px;
@@ -130,7 +129,7 @@
 
     /* ==== PREVIEW ==== */
     #preview{
-      display:block; max-width:100%; max-height:220px; border-radius:14px; border:1px solid #e5e8f0; background:#fff; object-fit:contain
+      display:none; max-width:100%; max-height:220px; border-radius:14px; border:1px solid #e5e8f0; background:#fff; object-fit:contain
     }
 
     /* ==== PROGRESS ==== */
@@ -189,7 +188,6 @@
     .hist-title{ font-weight:800; color:#0b1f41; }
     .hist-actions{ display:flex; gap:8px }
 
-    /* Reduced motion */
     @media (prefers-reduced-motion: reduce){
       .blob,.grain,.orbit .r1,.orbit .r2{animation:none}
     }
@@ -197,7 +195,7 @@
 </head>
 <body>
   <!-- Background -->
-  <div class="bg">
+  <div class="bg" aria-hidden="true">
     <div class="grain"></div>
     <div class="blob a"></div>
     <div class="blob b"></div>
@@ -210,12 +208,12 @@
       <div class="subtitle" id="welcome">Hoş geldin!</div>
       <button id="menuBtn" class="icon-btn" title="Geçmiş">☰</button>
       <a href="/admin" id="adminLink" style="display:none">Admin</a>
-      <button id="logout">Çıkış</button>
+      <button id="logout" type="button">Çıkış</button>
     </nav>
   </header>
 
   <!-- Drawer (Geçmiş) -->
-  <div id="histOverlay" class="drawer-overlay"></div>
+  <div id="histOverlay" class="drawer-overlay" aria-hidden="true"></div>
   <aside id="histPanel" class="drawer" aria-hidden="true">
     <header class="drawer-head">
       <strong>Geçmiş</strong>
@@ -239,16 +237,16 @@
     </div>
 
     <!-- === Fiş İşleme === -->
-    <section class="card">
-      <h1 class="title" style="margin-top:0">Fiş İşleme</h1>
+    <section class="card" aria-labelledby="title-fis">
+      <h1 id="title-fis" class="title" style="margin-top:0">Fiş İşleme</h1>
 
-      <form id="uploadForm">
+      <form id="uploadForm" autocomplete="off">
         <!-- Satır 1: Dosya + Kategori -->
         <div class="grid-2">
           <label class="field">
             <span>Dosya(lar) (JPG/PNG)</span>
             <div class="drop" id="drop">
-              <input id="file" type="file" name="file" accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff" multiple required />
+              <input id="file" type="file" name="file" accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff" multiple required autocomplete="off" />
               <div class="dz-label">Sürükleyip bırak veya tıkla</div>
             </div>
             <small class="hint">PDF demoda kapalı. Birden fazla görsel seçebilirsiniz.</small>
@@ -256,7 +254,7 @@
 
           <label class="field">
             <span>Kategori</span>
-            <select name="kategori">
+            <select name="kategori" autocomplete="off">
               <option>Market</option>
               <option>Benzin</option>
               <option>Otopark</option>
@@ -273,7 +271,7 @@
         <div class="grid-2">
           <label class="field">
             <span>OCR Dil</span>
-            <select name="lang" id="lang">
+            <select name="lang" id="lang" autocomplete="off">
               <option value="tur+eng" selected>Türkçe + İngilizce</option>
               <option value="tur">Türkçe</option>
               <option value="eng">İngilizce</option>
@@ -283,7 +281,7 @@
 
           <div class="field">
             <span>Önizleme</span>
-            <img id="preview" alt="Önizleme" />
+            <img id="preview" alt="Önizleme" src="" />
           </div>
         </div>
 
@@ -298,7 +296,7 @@
       <div id="progress" class="progress" style="margin-top:10px"><div class="spinner"></div> İşleniyor…</div>
 
       <!-- PAGER -->
-      <div id="pager" class="mini-pager">
+      <div id="pager" class="mini-pager" aria-hidden="true">
         <button id="prevBtn" class="btn btn-ghost" type="button">← Önceki</button>
         <div>
           <span id="pageLabel">0 / 0</span>
@@ -311,7 +309,7 @@
       <div class="grid-2" style="margin-top:18px">
         <div class="field">
           <span>OCR Sonucu (Önizleme)</span>
-          <textarea id="result" readonly></textarea>
+          <textarea id="result" readonly autocomplete="off"></textarea>
           <div id="meta" class="hint" style="margin-top:6px"></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
             <button id="copyBtn" class="btn" type="button">Metni Kopyala</button>
@@ -322,18 +320,19 @@
         <div class="field">
           <span>Düzenlenebilir Alanlar</span>
           <div class="grid-2">
-            <div class="field"><span>Satıcı</span><input id="p_vendor" placeholder="Satıcı" /></div>
-            <div class="field"><span>Tarih</span><input id="p_date" type="date" placeholder="YYYY-MM-DD" /></div>
-            <div class="field"><span>Fiş/Fatura No</span><input id="p_receipt" placeholder="Belge No" /></div>
-            <div class="field"><span>Ara Toplam</span><input id="p_subtotal" inputmode="decimal" placeholder="0,00" /></div>
-            <div class="field"><span>KDV Toplam</span><input id="p_vat_total" inputmode="decimal" placeholder="0,00" /></div>
-            <div class="field"><span>Genel Toplam</span><input id="p_total" inputmode="decimal" placeholder="0,00" /></div>
-            <div class="field"><span>KDV Oranı (%)</span>
+            <div class="field"><span>Satıcı</span><input id="p_vendor" placeholder="Satıcı" autocomplete="off" /></div>
+            <div class="field"><span>Tarih</span><input id="p_date" type="date" placeholder="YYYY-MM-DD" autocomplete="off" /></div>
+            <div class="field"><span>Fiş/Fatura No</span><input id="p_receipt" placeholder="Belge No" autocomplete="off" /></div>
+            <div class="field"><span>Ara Toplam</span><input id="p_subtotal" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
+            <div class="field"><span>KDV Toplam</span><input id="p_vat_total" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
+            <div class="field"><span>Genel Toplam</span><input id="p_total" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
+            <div class="field">
+              <span>KDV Oranı (%)</span>
               <input id="p_vatrate" inputmode="decimal"
                      pattern="^\d{1,2}([.,]\d{1,2})?$"
-                     title="Örn: 8 veya 10, 20, 20.0" placeholder="8 / 10 / 20" />
+                     title="Örn: 8 veya 10, 20, 20.0" placeholder="8 / 10 / 20" autocomplete="off" />
             </div>
-            <div class="field"><span>Ödeme Tipi</span><input id="p_payment" placeholder="Nakit / Kredi Kartı" /></div>
+            <div class="field"><span>Ödeme Tipi</span><input id="p_payment" placeholder="Nakit / Kredi Kartı" autocomplete="off" /></div>
           </div>
 
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
@@ -349,8 +348,8 @@
     </section>
 
     <!-- === Skor & Kalite === -->
-    <section class="card" style="margin-top:18px">
-      <h2 class="title" style="margin:0 0 12px">Skor & Kalite</h2>
+    <section class="card" style="margin-top:18px" aria-labelledby="title-skor">
+      <h2 id="title-skor" class="title" style="margin:0 0 12px">Skor & Kalite</h2>
 
       <div class="score-grid">
         <!-- Donut -->
@@ -403,7 +402,7 @@
 
   <!-- Sayfa içi mini yardımcılar (app.js ile uyumlu) -->
   <script>
-    // Dropzone UX
+    // Dropzone UX + Önizleme
     (function(){
       const drop = document.getElementById('drop');
       const file = document.getElementById('file');
@@ -423,11 +422,18 @@
         }
       });
 
+      // Baslangıçta görünmesin
+      if (preview) { preview.src = ""; preview.style.display = "none"; }
+
       // Basit önizleme
       file.addEventListener('change', ()=>{
         const f = file.files?.[0];
         if(!preview) return;
-        if(!f){ preview.style.display='none'; preview.src=''; return; }
+        if(!f){
+          preview.src = "";
+          preview.style.display = "none";
+          return;
+        }
         const url = URL.createObjectURL(f);
         preview.src = url;
         preview.onload = ()=> URL.revokeObjectURL(url);
@@ -483,7 +489,7 @@
       const close = document.getElementById('histClose');
       const ov = document.getElementById('histOverlay');
       const panel = document.getElementById('histPanel');
-      const show = (v)=>{ panel?.classList.toggle('show', v); ov?.classList.toggle('show', v); };
+      const show = (v)=>{ panel?.classList.toggle('show', v); ov?.classList.toggle('show', v); panel?.setAttribute('aria-hidden', (!v).toString()); };
       btn?.addEventListener('click', ()=> show(true));
       close?.addEventListener('click', ()=> show(false));
       ov?.addEventListener('click', ()=> show(false));
