@@ -10,6 +10,10 @@ from PIL import Image
 import pytesseract
 import uuid, os, json, re
 
+import os
+os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/4.00/tessdata")
+
+
 # ======================== TESSERACT AYARI ========================
 if os.name == "nt":
     tpath = r"C:\Program Files\Tesseract-OCR\tesseract.exe"

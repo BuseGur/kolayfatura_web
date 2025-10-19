@@ -1,5 +1,5 @@
-fastapi
-uvicorn
+fastapi==0.111.0
+uvicorn==0.30.0
 python-multipart
-pillow
-pytesseract
+pillow==10.4.0
+pytesseract==0.3.10
