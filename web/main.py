@@ -1,4 +1,6 @@
 # web/main.py
+from __future__ import annotations
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,33 +12,44 @@ from PIL import Image
 import pytesseract
 import uuid, os, json, re, subprocess
 
-# --- Tesseract veri yolu (Docker/Linux için) ---
+# ======================== TESSERACT / ORTAM ========================
+# Linux konteynerlerde standart yol; yoksa mevcut değeri bozma
 os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/4.00/tessdata")
 
-# -------------------- APP --------------------
-app = FastAPI(title="KolayFatura Web")
-
-# ========================= DİZİNLER =========================
-BASE_DIR    = Path(__file__).resolve().parent
-STATIC_DIR  = BASE_DIR / "static"
-RUNTIME_DIR = BASE_DIR / "runtime"
-RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-
-# Statik dosyalar
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-# ======================== TESSERACT AYARI (Windows) ========================
+# Windows geliştirici makineleri için yerel exe yolu
 if os.name == "nt":
     tpath = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if Path(tpath).exists():
         pytesseract.pytesseract.tesseract_cmd = tpath
 
-# =========================================================
-# ----------------- BASİT AUTH / KULLANICI ----------------
-# =========================================================
-USERS_FILE  = BASE_DIR / "users.json"
+# ========================== DİZİN YAPISI ==========================
+BASE_DIR    = Path(__file__).resolve().parent
+STATIC_DIR  = BASE_DIR / "static"
+RUNTIME_DIR = BASE_DIR / "runtime"
+RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+
+# Kalıcı kullanıcı dosyası (/data diski Render’da mount edilmeli)
+USERS_FILE_PATH = os.getenv("USERS_FILE", "/data/users.json")
+USERS_FILE = Path(USERS_FILE_PATH)
+USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# Dosya yoksa varsayılan admin oluştur
+if not USERS_FILE.exists():
+    default_admin = os.getenv("ADMIN_USER", "admin")
+    default_pass  = os.getenv("ADMIN_PASS", "admin")
+    USERS_FILE.write_text(
+        json.dumps({default_admin: {"password": default_pass, "role": "admin", "expires_at": None}},
+                   ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+# ============================= APP ================================
+app = FastAPI(title="KolayFatura Web")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 COOKIE_NAME = "kf_user"
 
+# ====================== YARDIMCI: USERS ===========================
 def load_users() -> dict:
     if not USERS_FILE.exists():
         return {}
@@ -48,9 +61,7 @@ def save_users(data: dict):
 def check_password(username: str, password: str) -> Optional[dict]:
     users = load_users()
     u = users.get(username)
-    if not u:
-        return None
-    if u.get("password") != password:
+    if not u or u.get("password") != password:
         return None
     exp = u.get("expires_at")
     if exp:
@@ -59,7 +70,7 @@ def check_password(username: str, password: str) -> Optional[dict]:
                 return None
         except Exception:
             pass
-    return u  # {"password":..., "role":"admin"/"user", "expires_at":...}
+    return u
 
 def current_user_obj(request: Request) -> Optional[dict]:
     username = request.cookies.get(COOKIE_NAME)
@@ -82,9 +93,7 @@ def require_admin(request: Request) -> dict:
         raise HTTPException(status_code=403, detail="Yönetici yetkisi gerekir")
     return u
 
-# =========================================================
-# ----------------------- SAYFALAR ------------------------
-# =========================================================
+# ============================ SAYFALAR ============================
 @app.get("/login")
 def login_page():
     return FileResponse(STATIC_DIR / "login.html")
@@ -103,9 +112,7 @@ def admin_page(request: Request):
     require_admin(request)
     return FileResponse(STATIC_DIR / "admin.html")
 
-# =========================================================
-# ----------------------- AUTH API ------------------------
-# =========================================================
+# ============================ AUTH API ============================
 @app.get("/api/me")
 def api_me(request: Request):
     u = current_user_obj(request)
@@ -120,15 +127,15 @@ async def api_login(username: str = Form(...), password: str = Form(...)):
         return JSONResponse({"ok": False, "error": "Kullanıcı adı/şifre geçersiz ya da süresi dolmuş"}, status_code=401)
     target = "/admin" if u.get("role") == "admin" else "/"
     resp = JSONResponse({"ok": True, "redirect": target})
-    # Dev/prod güvenliği: dev'de secure=False, prod'da True
+    # prod’da secure cookie
     resp.set_cookie(
         key=COOKIE_NAME,
         value=username,
         httponly=True,
-        secure=os.getenv("ENV", "dev") != "dev",
+        secure=(os.getenv("ENV", "dev") != "dev"),
         samesite="lax",
         path="/",
-        max_age=60*60*8  # 8 saat
+        max_age=60*60*8
     )
     return resp
 
@@ -138,7 +145,7 @@ async def api_logout():
     resp.delete_cookie(COOKIE_NAME, path="/")
     return resp
 
-# -------------------- Admin kullanıcı API ----------------
+# ---- Admin kullanıcı API
 @app.get("/api/users")
 def list_users(request: Request):
     require_admin(request)
@@ -169,9 +176,20 @@ async def delete_user(request: Request, username: str = Form(...)):
         save_users(users)
     return {"ok": True}
 
-# =========================================================
-# ----------------- OCR PARSING / YARDIMCI ----------------
-# =========================================================
+# ===================== OCR SELF-TEST / HEALTH =====================
+@app.get("/api/ocr-selftest")
+def ocr_selftest():
+    try:
+        version = subprocess.check_output(["tesseract", "--version"]).decode().splitlines()[0]
+        try:
+            langs = subprocess.check_output(["tesseract", "--list-langs"]).decode().splitlines()[1:]
+        except Exception:
+            langs = []
+        return {"ok": True, "tesseract_version": version, "lang_data": langs}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# =================== OCR PARSING / YARDIMCILAR ====================
 ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 MAX_BYTES       = 7 * 1024 * 1024  # 7 MB
 
@@ -218,16 +236,15 @@ def find_first_date(lines: list[str]) -> str | None:
         if not m:
             continue
         raw = re.sub(r'\s+', ' ', m.group(1)).strip()
-
-        # "12 Oca 2025" gibi ay ismi içeren format
         parts = raw.replace('.', ' ').replace('/', ' ').replace('-', ' ').split()
+
+        # "12 Oca 2025" benzeri
         if len(parts) == 3 and parts[0].isdigit() and not parts[1].isdigit() and parts[2].isdigit():
             d = int(parts[0]); mo_name = parts[1].upper(); y = int(parts[2])
-            mo = MONTH_MAP_TR.get(mo_name, None)
+            mo = MONTH_MAP_TR.get(mo_name)
             if mo:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
 
-        # Standart ayraçlı formatlar
         try:
             sep = '.' if '.' in raw else ('/' if '/' in raw else '-')
             segs = raw.split(sep)
@@ -312,7 +329,6 @@ def find_numbers(lines: list[str]) -> dict:
 def guess_payment(lines: list[str], text: str) -> str | None:
     low_lines = [ln.lower() for ln in lines]
 
-    # TOPLAM satırını bul
     total_idx = None
     for i in range(len(low_lines) - 1, -1, -1):
         if 'toplam' in low_lines[i]:
@@ -325,85 +341,58 @@ def guess_payment(lines: list[str], text: str) -> str | None:
     def is_card(s: str) -> bool:
         return re.search(r'(kred[ıi]\s*kart[ıi]|banka\s*kart[ıi]|visa|master|amex|troy|pos|temass|kk\b|kart\b)', s) is not None
 
-    # Yemek kartları & taksit
     all_low = (text or "").lower()
     if re.search(r'\b(multinet|metropol|sodexo|setcard|ticket|yemekmatik)\b', all_low):
         return 'Yemek Kartı'
     if re.search(r'\btaksit|taks\.\b', all_low):
         return 'Kredi Kartı (Taksit)'
 
-    # 1) TOPLAM çevresi (üst/alt)
     if total_idx is not None:
         start = max(0, total_idx - 4)
         end   = min(len(low_lines), total_idx + 5)
-        window = low_lines[start:end]
-        for s in window:
-            if is_cash(s):
-                return 'Nakit'
-            if is_card(s):
-                return 'Kredi Kartı'
+        for s in low_lines[start:end]:
+            if is_cash(s): return 'Nakit'
+            if is_card(s): return 'Kredi Kartı'
 
-    # 2) Tüm metin (fallback)
-    if is_cash(all_low):
-        return 'Nakit'
-    if is_card(all_low):
-        return 'Kredi Kartı'
+    if is_cash(all_low): return 'Nakit'
+    if is_card(all_low): return 'Kredi Kartı'
 
-    # 3) kısa ipuçları (satır bazlı)
     for s in low_lines:
-        if re.search(r'\bnakit\b', s) and re.search(r'\d', s):
-            return 'Nakit'
-        if re.search(r'\b(k\.?k\.?|kk|kart)\b', s) and re.search(r'\d', s):
-            return 'Kredi Kartı'
-
+        if re.search(r'\bnakit\b', s) and re.search(r'\d', s): return 'Nakit'
+        if re.search(r'\b(k\.?k\.?|kk|kart)\b', s) and re.search(r'\d', s): return 'Kredi Kartı'
     return None
 
 def _to_tsv_grid(text: str):
-    """Satırları hücrelere böl (sekme/çoklu boşluk/| ile)."""
     rows = []
     for raw in (text or "").splitlines():
-        if not raw.strip():
-            continue
+        if not raw.strip(): continue
         line = re.sub(r'[|]', ' ', raw)
         parts = re.split(r'\s{2,}|\t', line.strip())
-        rows.append([p.strip() for p in parts if p.strip() ])
+        rows.append([p.strip() for p in parts if p.strip()])
     return rows
 
 def _find_neighbor_value(grid, label_variants):
-    """
-    1) Aynı hücrede ':' sonrası
-    2) Aynı satır sağ hücre
-    3) Alt satır ilk hücre
-    """
     for r, row in enumerate(grid):
         for c, cell in enumerate(row):
             up = cell.upper().replace(':', ' ')
             if any(lab in up for lab in label_variants):
                 m = re.search(r':\s*([A-Z0-9\-\/]{2,})', cell, re.IGNORECASE)
-                if m:
-                    return m.group(1).strip(), 0.9
+                if m: return m.group(1).strip(), 0.9
                 if c + 1 < len(row):
                     val = row[c + 1]
-                    if val and len(val) >= 2:
-                        return val.strip(), 0.95
+                    if val and len(val) >= 2: return val.strip(), 0.95
                 if r + 1 < len(grid) and grid[r + 1]:
                     val = grid[r + 1][0]
-                    if val and len(val) >= 2:
-                        return val.strip(), 0.75
+                    if val and len(val) >= 2: return val.strip(), 0.75
     return None, 0.0
 
 def find_vendor(lines: list[str]) -> str | None:
-    header = lines[:30]  # daha geniş aralık
+    header = lines[:30]
     cand = []
     for ln in header:
         l = ln.strip(); ll = l.lower()
-        if len(l) < 3:
-            continue
-        if any(w in ll for w in [
-            'a.ş', 'a.s', 'ltd', 'şti', 'sti', 'tic', 'san',
-            'market', 'mağaza', 'magaza', 'migros', 'bim', 'a101', 'şok', 'sok',
-            'ünvan', 'unvan', 'ünvanı', 'unvani'
-        ]):
+        if len(l) < 3: continue
+        if any(w in ll for w in ['a.ş','a.s','ltd','şti','sti','tic','san','market','mağaza','magaza','migros','bim','a101','şok','sok','ünvan','unvan','ünvanı','unvani']):
             cand.append(l)
     if cand:
         return ' '.join(cand) if len(cand) > 1 else cand[0]
@@ -413,11 +402,9 @@ def find_vendor(lines: list[str]) -> str | None:
     return None
 
 def parse_receipt_text(text: str) -> dict:
-    # OCR karakter temizliği
     text = (text or "").replace('“','').replace('”','').replace('«','').replace('»','').replace('—','-')
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
 
-    # Regex tabanlı ilk çıkarım
     date_str  = find_first_date(lines)
     rno       = find_receipt_no(text, lines)
     nums      = find_numbers(lines)
@@ -425,19 +412,14 @@ def parse_receipt_text(text: str) -> dict:
     payment   = guess_payment(lines, text)
     vendor    = find_vendor(lines)
 
-    # Komşu hücre (grid) ile iyileştirme
     grid = _to_tsv_grid(text)
 
-    # Fiş No
     receipt_conf = 0.7 if rno else 0.0
     if not rno:
-        rno2, rc = _find_neighbor_value(grid, [
-            "FİŞ NO","FIS NO","FATURA NO","BELGE NO","EVRAK NO","DOCUMENT NO","INVOICE NO","SLIP NO"
-        ])
+        rno2, rc = _find_neighbor_value(grid, ["FİŞ NO","FIS NO","FATURA NO","BELGE NO","EVRAK NO","DOCUMENT NO","INVOICE NO","SLIP NO"])
         if rno2:
             rno, receipt_conf = rno2, max(receipt_conf, rc)
 
-    # Ara Toplam
     sub_conf = 0.8 if nums["subtotal"] else 0.0
     if not nums["subtotal"]:
         sub2, sc = _find_neighbor_value(grid, ["ARA TOPLAM","ARATOP","ARATOPLAM","MAL HİZMET","MAL/HİZMET"])
@@ -446,7 +428,6 @@ def parse_receipt_text(text: str) -> dict:
             nums["subtotal"] = str(val) if val is not None else sub2
             sub_conf = max(sub_conf, sc if val is not None else 0.6)
 
-    # KDV Toplam
     vat_conf = 0.8 if nums["vat_total"] else 0.0
     if not nums["vat_total"]:
         vat2, vc = _find_neighbor_value(grid, ["KDV TOPLAM","TOPKDV","TOP KDV","HESAPLANAN KDV","KDV TUTAR"])
@@ -455,7 +436,6 @@ def parse_receipt_text(text: str) -> dict:
             nums["vat_total"] = str(val) if val is not None else vat2
             vat_conf = max(vat_conf, vc if val is not None else 0.6)
 
-    # Genel Toplam
     tot_conf = 0.9 if nums["total"] else 0.0
     if not nums["total"]:
         tot2, tc = _find_neighbor_value(grid, ["GENEL TOPLAM","TOPLAM TUTAR","TOPLAM"])
@@ -464,7 +444,6 @@ def parse_receipt_text(text: str) -> dict:
             nums["total"] = str(val) if val is not None else tot2
             tot_conf = max(tot_conf, tc if val is not None else 0.7)
 
-    # Ödeme tipi (komşuluk ipucu ek destek)
     pay_conf = 0.6 if payment else 0.0
     if not payment:
         pay2, pc = _find_neighbor_value(grid, ["ÖDEME","ODEME","TUTAR","TOPLAM"])
@@ -473,7 +452,6 @@ def parse_receipt_text(text: str) -> dict:
         elif pay2 and re.search(r'(kred[ıi]\s*kart[ıi]|banka\s*kart[ıi]|visa|master|troy|pos|temass|kk\b|kart\b)', pay2.lower()):
             payment, pay_conf = "Kredi Kartı", max(pay_conf, pc, 0.8)
 
-    # Basit güven skorları
     vat_rate_conf = 0.8 if vat_rate else 0.0
     date_conf     = 0.85 if date_str else 0.0
     vendor_conf   = 0.8 if vendor else 0.0
@@ -496,20 +474,16 @@ def parse_receipt_text(text: str) -> dict:
         "subtotal":     nums["subtotal"],
         "vat_total":    nums["vat_total"],
         "total":        nums["total"],
-        "vat_rate":     vat_rate,        # '18' → %18
+        "vat_rate":     vat_rate,
         "payment_type": payment,
         "conf":         conf
     }
 
-# =========================================================
-# --------------------- OCR İŞLEME ------------------------
-# =========================================================
+# ========================= OCR İŞLEME =============================
 def _open_image_to_ocr(path: Path):
-    # Gri ton + basit eşikleme
     img = Image.open(path).convert("L")
     try:
-        thresh = img.point(lambda p: 255 if p > 180 else 0)
-        return thresh
+        return img.point(lambda p: 255 if p > 180 else 0)
     except Exception:
         return img
 
@@ -531,9 +505,7 @@ def _ocr_with_fallback(img, lang: str):
             last_err = e
     raise HTTPException(status_code=500, detail=f"OCR başarısız: {last_err}")
 
-# =========================================================
-# ----------------------- OCR API -------------------------
-# =========================================================
+# =========================== OCR API ==============================
 @app.post("/api/ocr")
 async def ocr_endpoint(
     request: Request,
@@ -571,9 +543,6 @@ async def ocr_endpoint(
         "parsed": parsed,
     })
 
-# =========================================================
-# -------------------- TOPLU OCR API ----------------------
-# =========================================================
 @app.post("/api/ocr-batch")
 async def ocr_batch(
     request: Request,
@@ -588,20 +557,12 @@ async def ocr_batch(
         try:
             _validate_upload(f)
         except HTTPException as e:
-            results.append({
-                "filename": f.filename,
-                "status": "error",
-                "detail": e.detail
-            })
+            results.append({"filename": f.filename, "status": "error", "detail": e.detail})
             continue
 
         blob = await f.read()
         if len(blob) > MAX_BYTES:
-            results.append({
-                "filename": f.filename,
-                "status": "error",
-                "detail": "Dosya çok büyük."
-            })
+            results.append({"filename": f.filename, "status": "error", "detail": "Dosya çok büyük."})
             continue
 
         workdir = RUNTIME_DIR / uuid.uuid4().hex
@@ -621,22 +582,6 @@ async def ocr_batch(
                 "parsed": parsed
             })
         except Exception as e:
-            results.append({
-                "filename": f.filename,
-                "status": "error",
-                "detail": f"{e}"
-            })
+            results.append({"filename": f.filename, "status": "error", "detail": f"{e}"})
 
     return JSONResponse({"ok": True, "items": results})
-
-# =========================================================
-# ------------- OCR SELF-TEST (teşhis amaçlı) -------------
-# =========================================================
-@app.get("/api/ocr-selftest")
-def ocr_selftest():
-    try:
-        version = subprocess.check_output(["tesseract", "--version"]).decode().splitlines()[0]
-        langs = subprocess.check_output(["tesseract", "--list-langs"]).decode().splitlines()[1:]
-        return {"ok": True, "tesseract_version": version, "lang_data": langs}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
