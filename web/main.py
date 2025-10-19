@@ -8,28 +8,28 @@ from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 from PIL import Image
 import pytesseract
-import uuid, os, json, re
+import uuid, os, json, re, subprocess
 
-import os
+# --- Tesseract veri yolu (Docker/Linux için) ---
 os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/4.00/tessdata")
 
+# -------------------- APP --------------------
+app = FastAPI(title="KolayFatura Web")
 
-# ======================== TESSERACT AYARI ========================
-if os.name == "nt":
-    tpath = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    if Path(tpath).exists():
-        pytesseract.pytesseract.tesseract_cmd = tpath
-
-# ========================== DİZİN YAPISI =========================
+# ========================= DİZİNLER =========================
 BASE_DIR    = Path(__file__).resolve().parent
 STATIC_DIR  = BASE_DIR / "static"
 RUNTIME_DIR = BASE_DIR / "runtime"
 RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="KolayFatura Web")
-
 # Statik dosyalar
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# ======================== TESSERACT AYARI (Windows) ========================
+if os.name == "nt":
+    tpath = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if Path(tpath).exists():
+        pytesseract.pytesseract.tesseract_cmd = tpath
 
 # =========================================================
 # ----------------- BASİT AUTH / KULLANICI ----------------
@@ -219,17 +219,10 @@ def find_first_date(lines: list[str]) -> str | None:
             continue
         raw = re.sub(r'\s+', ' ', m.group(1)).strip()
 
-        # Ay isimleriyle (Oca/Şub/...) gelen formatı destekle
+        # "12 Oca 2025" gibi ay ismi içeren format
         parts = raw.replace('.', ' ').replace('/', ' ').replace('-', ' ').split()
-        if len(parts) == 3 and not parts[0].isdigit() and parts[1].isdigit():
-            # Örn: "Oca 12 2025" gibi – nadir, atla
-            pass
-
-        # "12 Oca 2025" gibi
         if len(parts) == 3 and parts[0].isdigit() and not parts[1].isdigit() and parts[2].isdigit():
-            d = int(parts[0])
-            mo_name = parts[1].upper()
-            y = int(parts[2])
+            d = int(parts[0]); mo_name = parts[1].upper(); y = int(parts[2])
             mo = MONTH_MAP_TR.get(mo_name, None)
             if mo:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
@@ -373,7 +366,7 @@ def _to_tsv_grid(text: str):
             continue
         line = re.sub(r'[|]', ' ', raw)
         parts = re.split(r'\s{2,}|\t', line.strip())
-        rows.append([p.strip() for p in parts if p.strip()])
+        rows.append([p.strip() for p in parts if p.strip() ])
     return rows
 
 def _find_neighbor_value(grid, label_variants):
@@ -403,8 +396,7 @@ def find_vendor(lines: list[str]) -> str | None:
     header = lines[:30]  # daha geniş aralık
     cand = []
     for ln in header:
-        l = ln.strip()
-        ll = l.lower()
+        l = ln.strip(); ll = l.lower()
         if len(l) < 3:
             continue
         if any(w in ll for w in [
@@ -513,7 +505,7 @@ def parse_receipt_text(text: str) -> dict:
 # --------------------- OCR İŞLEME ------------------------
 # =========================================================
 def _open_image_to_ocr(path: Path):
-    # Gri ton + basit eşikleme (Otsu benzeri)
+    # Gri ton + basit eşikleme
     img = Image.open(path).convert("L")
     try:
         thresh = img.point(lambda p: 255 if p > 180 else 0)
@@ -636,3 +628,15 @@ async def ocr_batch(
             })
 
     return JSONResponse({"ok": True, "items": results})
+
+# =========================================================
+# ------------- OCR SELF-TEST (teşhis amaçlı) -------------
+# =========================================================
+@app.get("/api/ocr-selftest")
+def ocr_selftest():
+    try:
+        version = subprocess.check_output(["tesseract", "--version"]).decode().splitlines()[0]
+        langs = subprocess.check_output(["tesseract", "--list-langs"]).decode().splitlines()[1:]
+        return {"ok": True, "tesseract_version": version, "lang_data": langs}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
