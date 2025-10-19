@@ -13,10 +13,8 @@ import pytesseract
 import uuid, os, json, re, subprocess
 
 # ======================== TESSERACT / ORTAM ========================
-# Linux konteynerlerde standart yol; yoksa mevcut değeri bozma
 os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/4.00/tessdata")
 
-# Windows geliştirici makineleri için yerel exe yolu
 if os.name == "nt":
     tpath = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if Path(tpath).exists():
@@ -28,7 +26,7 @@ STATIC_DIR  = BASE_DIR / "static"
 RUNTIME_DIR = BASE_DIR / "runtime"
 RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
 
-# Kalıcı kullanıcı dosyası (/data diski Render’da mount edilmeli)
+# Kalıcı kullanıcı dosyası (/data diski mount edilmeli)
 USERS_FILE_PATH = os.getenv("USERS_FILE", "/data/users.json")
 USERS_FILE = Path(USERS_FILE_PATH)
 USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -46,7 +44,6 @@ if not USERS_FILE.exists():
 # ============================= APP ================================
 app = FastAPI(title="KolayFatura Web")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
 COOKIE_NAME = "kf_user"
 
 # ====================== YARDIMCI: USERS ===========================
@@ -96,7 +93,6 @@ def require_admin(request: Request) -> dict:
 # ============================ SAYFALAR ============================
 @app.get("/login")
 def login_page():
-    # Önbelleklenmesin
     html = (STATIC_DIR / "login.html").read_text(encoding="utf-8")
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
@@ -131,7 +127,6 @@ async def api_login(username: str = Form(...), password: str = Form(...)):
         return JSONResponse({"ok": False, "error": "Kullanıcı adı/şifre geçersiz ya da süresi dolmuş"}, status_code=401)
     target = "/admin" if u.get("role") == "admin" else "/"
     resp = JSONResponse({"ok": True, "redirect": target})
-    # prod’da secure cookie
     resp.set_cookie(
         key=COOKIE_NAME,
         value=username,
@@ -242,7 +237,7 @@ def find_first_date(lines: list[str]) -> str | None:
         raw = re.sub(r'\s+', ' ', m.group(1)).strip()
         parts = raw.replace('.', ' ').replace('/', ' ').replace('-', ' ').split()
 
-        # "12 Oca 2025" benzeri
+        # "12 Oca 2025"
         if len(parts) == 3 and parts[0].isdigit() and not parts[1].isdigit() and parts[2].isdigit():
             d = int(parts[0]); mo_name = parts[1].upper(); y = int(parts[2])
             mo = MONTH_MAP_TR.get(mo_name)
