@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KolayFatura — Admin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <style>
+    :root{
+      --navy:#0B1F41; --ink:#0B1F41; --muted:#6b7a90; --card:#ffffff; --radius:20px; --line:#e9eef6; --danger:#B00020; --accent:#0E2957;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; min-height:100vh; color:#0f1f3e; font-family:"Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 520px at 50% -220px, rgba(255,255,255,.09), transparent 60%),
+        linear-gradient(135deg, var(--navy) 0%, #0E2957 55%, var(--navy) 100%);
+      position:relative; overflow-x:hidden; isolation:isolate;
+    }
+
+    /* BACKGROUND DECOR */
+    .bg{position:absolute;inset:0;z-index:-2}
+    .grain{position:absolute;inset:-50%;opacity:.06;mix-blend:overlay;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: drift 30s linear infinite}
+    .blob{position:absolute;filter:blur(44px) saturate(140%);opacity:.28}
+    .blob.a{width:520px;height:520px;left:-120px;top:20%;background:conic-gradient(from 90deg, #4e7fe9, #5fd5ff, #4e7fe9);animation:floatA 20s ease-in-out infinite}
+    .blob.b{width:420px;height:420px;right:-120px;top:60%;background:conic-gradient(from -45deg, #ffdd66, #ff8e3c, #ffdd66);animation:floatB 24s ease-in-out infinite}
+    @keyframes drift{to{transform:translate3d(8%,8%,0)}}
+    @keyframes floatA{50%{transform:translate3d(60px,-20px,0) scale(1.05)}}
+    @keyframes floatB{50%{transform:translate3d(-40px,10px,0) scale(1.06)}}
+
+    /* HEADER */
+    .admin-header{display:flex;align-items:center;gap:14px;padding:18px 22px;color:#fff;max-width:1200px;margin:0 auto;width:100%}
+    .logo-img{height:34px;width:auto;filter:brightness(0) invert(1)}
+    .spacer{flex:1}
+    .top-btn{color:#fff;text-decoration:none;font-weight:800;background:transparent;border:1px solid rgba(255,255,255,.4);padding:8px 12px;border-radius:12px;cursor:pointer}
+    .top-btn:hover{background:rgba(255,255,255,.08)}
+
+    /* TITLE */
+    .title{color:#fff;text-align:center;font-size:28px;font-weight:800;margin:12px 0 26px;text-shadow:0 8px 28px rgba(0,0,0,.35)}
+
+    /* ORBIT DECOR */
+    .orbit{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:-1}
+    .orbit svg{position:absolute;opacity:.16}
+    .orbit .r1{width:820px;animation:spin 36s linear infinite}
+    .orbit .r2{width:560px;animation:spin 26s linear infinite reverse}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* PAGE LAYOUT */
+    .page{max-width:1200px;margin:0 auto 44px;padding:0 16px;position:relative}
+
+    /* CARDS */
+    .card{
+      background:linear-gradient(to bottom right, rgba(255,255,255,.35), rgba(255,255,255,.20));
+      border:1px solid rgba(255,255,255,.18); backdrop-filter: blur(18px) saturate(120%); -webkit-backdrop-filter: blur(18px) saturate(120%);
+      border-radius:var(--radius); padding:16px; box-shadow:0 24px 60px rgba(0,0,0,.35);
+      transform:translateY(10px) scale(.98); opacity:0; animation:cardIn .6s cubic-bezier(.2,.7,.2,1) forwards .15s;
+    }
+    @keyframes cardIn{to{transform:translateY(0) scale(1);opacity:1}}
+
+    /* GRID */
+    .grid{display:grid;gap:18px;grid-template-columns:1.35fr .95fr}
+    @media (max-width: 980px){.grid{grid-template-columns:1fr}}
+
+    /* TABLE */
+    .table-wrap{overflow:auto;border-radius:14px}
+    table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:14px}
+    thead th{text-align:left;color:#334155;font-weight:800;font-size:12.5px;border-bottom:2px solid var(--line);padding:12px 10px;position:sticky;top:0;background:#f7f9ff}
+    tbody td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+    tbody tr{transition:background .15s}
+    tbody tr:hover{background:#f4f7ff}
+
+    .role{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:800;font-size:12px;background:#eef2ff;color:#3444aa}
+    .role.admin{background:#ffe8d0;color:#9b4b00}
+
+    .btn{padding:9px 12px;border-radius:12px;border:0;cursor:pointer;font-weight:800;background:var(--ink);color:#fff;box-shadow:0 8px 22px rgba(11,31,65,.32);transition:transform .08s}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-danger{background:var(--danger);box-shadow:0 8px 22px rgba(176,0,32,.25)}
+    .btn-ghost{background:#eef2f7;color:#0B1F41;box-shadow:none}
+    .btn-full{width:100%}
+
+    /* FORM */
+    .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+    .field span{color:#233252;font-size:13px;font-weight:800}
+    input, select{padding:12px;border:1px solid #e5e8f0;border-radius:12px;font-size:14px;outline:none;background:#fff}
+    input:focus, select:focus{border-color:#cfd7e6;box-shadow:0 0 0 3px rgba(11,31,65,.10)}
+
+    .form-card h3{margin:2px 0 12px;color:#0B1F41}
+
+    /* SEARCH BAR */
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:6px 2px 14px}
+    .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #dfe6f4;border-radius:12px;padding:8px 10px;min-width:240px}
+    .search input{border:0;outline:0;font-size:14px}
+
+    /* TOAST */
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.35);display:none;z-index:50}
+
+    /* SLIDE-IN PANEL (Edit) */
+    .panel{position:fixed;right:-420px;top:0;bottom:0;width:380px;background:#ffffff;border-left:1px solid #e9eef6;box-shadow:-16px 0 60px rgba(0,0,0,.25);padding:18px 16px;transition:right .28s ease;z-index:60}
+    .panel.open{right:0}
+    .panel .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+
+    /* REDUCED MOTION */
+    @media (prefers-reduced-motion: reduce){
+      .blob,.grain,.orbit .r1,.orbit .r2{animation:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="bg">
+    <div class="grain"></div>
+    <div class="blob a"></div>
+    <div class="blob b"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="admin-header">
+    <img src="/static/logo.png" alt="KolayFatura" class="logo-img">
+    <strong>KolayFatura — Admin</strong>
+    <div class="spacer"></div>
+    <a class="top-btn" href="/">Uygulama</a>
+    <button class="top-btn" id="logout">Çıkış</button>
+  </header>
+
+  <main class="page">
+    <div class="orbit" aria-hidden="true">
+      <svg class="r1" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="98" stroke="white" stroke-dasharray="4 10" stroke-opacity=".20"/>
+      </svg>
+      <svg class="r2" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="70" stroke="white" stroke-dasharray="2 8" stroke-opacity=".18"/>
+      </svg>
+    </div>
+
+    <h1 class="title">Kullanıcı Yönetimi</h1>
+
+    <div class="grid">
+      <!-- LIST -->
+      <section class="card">
+        <div class="toolbar">
+          <div class="search" role="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="#20304d" stroke-width="2"/></svg>
+            <input id="q" placeholder="Kullanıcı ara... (örn. demo)" aria-label="Kullanıcı ara">
+          </div>
+          <button class="btn" id="newUser">Yeni Kullanıcı</button>
+        </div>
+        <div class="table-wrap">
+          <table id="tbl" aria-describedby="userCount">
+            <thead>
+              <tr>
+                <th style="width:36%">Kullanıcı</th>
+                <th style="width:18%">Rol</th>
+                <th style="width:26%">Bitiş</th>
+                <th style="width:20%"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="userCount" class="hint" style="margin-top:8px;color:#e8efff"></div>
+      </section>
+
+      <!-- FORM -->
+      <aside class="card form-card">
+        <h3>Yeni / Güncelle</h3>
+        <form id="f" autocomplete="off">
+          <div class="field">
+            <span>Kullanıcı adı</span>
+            <input name="username" placeholder="ör. demo3" required autocomplete="off">
+          </div>
+          <div class="field">
+            <span>Şifre</span>
+            <input name="password" placeholder="şifre" required autocomplete="new-password">
+          </div>
+          <div class="field">
+            <span>Rol</span>
+            <select name="role">
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <div class="field">
+            <span>Bitiş (YYYY-MM-DD, boş = sınırsız)</span>
+            <input name="expires_at" type="date" placeholder="2025-12-31" pattern="\d{4}-\d{2}-\d{2}" title="YYYY-MM-DD biçimi">
+          </div>
+          <button class="btn btn-full" type="submit">Kaydet</button>
+        </form>
+      </aside>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Slide-in quick edit panel -->
+  <div id="panel" class="panel" aria-hidden="true">
+    <div class="head">
+      <strong style="font-size:16px">Hızlı Düzenle</strong>
+      <button id="closePanel" class="top-btn" style="border-color:#e9eef6;color:#0B1F41">Kapat</button>
+    </div>
+    <form id="pf" autocomplete="off">
+      <div class="field"><span>Kullanıcı adı</span><input name="username" required></div>
+      <div class="field"><span>Yeni Şifre</span><input name="password" placeholder="(değiştirmeyeceksen boş bırak)"></div>
+      <div class="field"><span>Rol</span>
+        <select name="role"><option value="user">user</option><option value="admin">admin</option></select>
+      </div>
+      <div class="field"><span>Bitiş</span><input name="expires_at" type="date" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}" title="YYYY-MM-DD biçimi"></div>
+      <button class="btn btn-full" type="submit">Kaydet</button>
+    </form>
+  </div>
+
+  <script>
+    const $ = (s, r=document)=>r.querySelector(s);
+    const $$ = (s, r=document)=>[...r.querySelectorAll(s)];
+
+    function toast(msg, ms=1600){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none', ms); }
+
+    // PANEL helpers
+    const panel = $('#panel');
+    const openPanel = ()=>{ panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); }
+    const closePanel = ()=>{ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); }
+    $('#closePanel').onclick = closePanel;
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
+
+    // DATA
+    let RAW_USERS = {}; // full map from backend
+    let FILTER = '';
+    let MYSELF = null;
+
+    function isExpired(dateStr){
+      if(!dateStr) return false;
+      const today = new Date().toISOString().slice(0,10);
+      return dateStr < today;
+    }
+
+    function render(users){
+      const tbody = $('#tbl tbody'); tbody.innerHTML='';
+      const names = Object.keys(users).sort();
+      const filtered = names.filter(n=> n.toLowerCase().includes(FILTER));
+      if(filtered.length===0){
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td colspan="4" style="text-align:center;color:#6b7a90">Kayıt bulunamadı</td>`;
+        tbody.appendChild(tr);
+      } else {
+        filtered.forEach(u=>{
+          const info = users[u];
+          const tr = document.createElement('tr');
+          const expired = isExpired(info.expires_at || '');
+          tr.innerHTML = `
+            <td style="font-weight:800">${u} ${expired?'<span class="role" style="background:#ffe5e9;color:#b00020;margin-left:8px">SÜRESİ DOLMUŞ</span>':''}</td>
+            <td><span class="role ${info.role==='admin'?'admin':''}">${info.role}</span></td>
+            <td>${info.expires_at ?? '-'}</td>
+            <td style="text-align:right; white-space:nowrap">
+              <button class="btn btn-ghost" data-edit="${u}">Düzenle</button>
+              <button class="btn btn-danger" data-del="${u}">Sil</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      }
+      $('#userCount').textContent = `${filtered.length} kullanıcı gösteriliyor`;
+
+      // hook buttons
+      $$('#tbl [data-del]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const u = btn.getAttribute('data-del');
+          if(u === MYSELF){ return toast('Kendi hesabınızı silemezsiniz'); }
+          if(!confirm(`${u} silinsin mi?`)) return;
+          const fd = new FormData(); fd.append('username', u);
+          try{
+            await safeFetch('/api/users/delete', {method:'POST', body:fd});
+            toast('Silindi'); loadUsers();
+          }catch{}
+        };
+      });
+
+      $$('#tbl [data-edit]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const u = btn.getAttribute('data-edit');
+          const info = RAW_USERS[u];
+          const pf = $('#pf');
+          pf.username.value = u;
+          pf.password.value = '';
+          pf.role.value = info.role;
+          pf.expires_at.value = info.expires_at || '';
+          openPanel();
+        };
+      });
+    }
+
+    async function safeFetch(url, opts){
+      try{
+        const r = await fetch(url, opts);
+        if(!r.ok){
+          const t = await r.text().catch(()=> '');
+          throw new Error(t || `HTTP ${r.status}`);
+        }
+        return r;
+      }catch(e){
+        toast(`Hata: ${e.message?.slice(0,140) || e}`);
+        throw e;
+      }
+    }
+
+    async function loadUsers(){
+      try{
+        const meRes = await safeFetch('/api/me');
+        const me = await meRes.json();
+        MYSELF = me?.username || null;
+      }catch{
+        // yetkisiz ise login'e dön
+        location.replace('/login');
+        return;
+      }
+
+      try{
+        const res = await safeFetch('/api/users');
+        const data = await res.json();
+        RAW_USERS = data.users || {};
+        render(RAW_USERS);
+      }catch{}
+    }
+
+    // main form (create/update)
+    $('#f').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try{
+        await safeFetch('/api/users/upsert', {method:'POST', body: fd});
+        toast('Kaydedildi'); e.target.reset(); loadUsers();
+      }catch{}
+    });
+
+    // panel form (quick edit)
+    $('#pf').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try{
+        await safeFetch('/api/users/upsert', {method:'POST', body: fd});
+        toast('Güncellendi'); closePanel(); loadUsers();
+      }catch{}
+    });
+
+    // search
+    $('#q').addEventListener('input', (e)=>{ FILTER = e.target.value.trim().toLowerCase(); render(RAW_USERS); });
+
+    // New user shortcut fills form
+    $('#newUser').onclick = ()=>{ const f=$('#f'); f.reset(); f.username.focus(); toast('Yeni kullanıcı ekle'); };
+
+    // logout
+    $('#logout').onclick = async ()=>{
+      try{ await fetch('/api/logout',{method:'POST',cache:'no-store'}); }
+      finally{ location.replace('/login'); }
+    };
+
+    // init
+    loadUsers();
+  </script>
+</body>
+</html>

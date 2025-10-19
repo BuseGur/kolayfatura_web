@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "password": "B67y--*u",
+    "role": "admin",
+    "expires_at": null
+  },
+  "user": {
+    "password": "a",
+    "role": "user",
+    "expires_at": null
+  }
+}

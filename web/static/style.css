@@ -1,0 +1,87 @@
+:root{
+  --navy:#0B1F41;
+  --gold:#F3CF43;
+  --bg:#f7f8fb;
+  --text:#15233b;
+  --muted:#6b7a90;
+  --card:#ffffff;
+  --radius:18px;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:var(--bg); color:var(--text);
+}
+.kf-header{
+  background:var(--navy); color:#fff; padding:22px 24px; display:flex; align-items:center; gap:16px;
+}
+.kf-header .logo{ font-weight:800; letter-spacing:.4px; font-size:20px }
+.kf-header .subtitle{ opacity:.8 }
+
+.container{ max-width:920px; margin:28px auto; padding:0 16px; }
+.card{
+  background:var(--card); border-radius:var(--radius); padding:24px;
+  box-shadow:0 10px 30px rgba(11,31,65,.08);
+}
+h1{ margin:0 0 16px; font-size:22px }
+.field{ display:flex; flex-direction:column; gap:8px; margin:12px 0 }
+input[type=file], select{
+  padding:12px; border:1px solid #e5e8f0; border-radius:12px; background:#fff;
+}
+.btn{
+  margin-top:8px; padding:12px 16px; background:var(--gold); color:#000; border:0;
+  border-radius:14px; cursor:pointer; font-weight:700;
+  box-shadow:0 6px 16px rgba(243,207,67,.35);
+}
+.btn:hover{ transform:translateY(-1px) }
+
+.progress{
+  margin-top:16px; padding:10px 12px; background:#fff4c7; border:1px solid #ffe48a; border-radius:12px;
+}
+.hidden{ display:none }
+.result{
+  margin-top:16px; background:#0b1f41; color:#e6f0ff; padding:16px; border-radius:12px; max-height:360px; overflow:auto;
+}
+.error{
+  margin-top:12px; color:#a40000; background:#ffe3e3; border:1px solid #ffbaba; padding:10px 12px; border-radius:12px;
+}
+/* ---- Login ve Form Alanları için Ortak Görünüm ---- */
+:root { --muted:#6b7a90; } /* zaten vardı; yoksa dursun */
+.field { display:flex; flex-direction:column; gap:8px; margin:12px 0 }
+.field > span { color: var(--muted); font-size: 14px }
+input[type=text], input[type=password] {
+  padding: 12px;
+  border: 1px solid #e5e8f0;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 15px;
+}
+input[type=text]:focus, input[type=password]:focus {
+  outline: none;
+  border-color: #cfd7e6;
+  box-shadow: 0 0 0 3px rgba(11,31,65,.08);
+}
+.field{ display:flex; flex-direction:column; gap:8px; margin:12px 0 }
+.field > span{ color:var(--muted); font-size:14px }
+input[type=text], input[type=password]{
+  padding:12px; border:1px solid #e5e8f0; border-radius:12px; background:#fff; font-size:15px;
+}
+input[type=text]:focus, input[type=password]:focus{
+  outline:none; border-color:#cfd7e6; box-shadow:0 0 0 3px rgba(11,31,65,.08);
+}
+/* Form ortak */
+.field{ display:flex; flex-direction:column; gap:8px; margin:12px 0 }
+.field > span{ color:var(--muted); font-size:14px; font-weight:600 }
+input[type=text], input[type=password]{
+  padding:12px; border:1px solid #e5e8f0; border-radius:12px; background:#fff; font-size:15px;
+}
+input[type=text]:focus, input[type=password]:focus{
+  outline:none; border-color:#cfd7e6; box-shadow:0 0 0 3px rgba(11,31,65,.08);
+}
+.logo-img {
+  height: 36px;
+  width: auto;
+  filter: brightness(0) invert(1); /* açık tema için beyazlaştırır */
+}
+

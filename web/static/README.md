@@ -1,0 +1,3 @@
+# KolayFatura Web
+
+Çalıştırma (lokal):
